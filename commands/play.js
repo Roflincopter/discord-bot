@@ -25,10 +25,13 @@ module.exports = {
       }
 
       const songInfo = await ytdl.getInfo(args[1]);
+      
+      const nickname = message.member.nickname || message.member.user.username; 
+
       const song = {
         title: songInfo.title,
         url: songInfo.video_url,
-        queuer: message.author.username,
+        queuer: nickname,
         duration: songInfo.length_seconds,
         durationString: moment.duration(parseInt(songInfo.length_seconds), "seconds").format("h:mm:ss")
       };
