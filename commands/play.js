@@ -28,6 +28,7 @@ module.exports = {
       const song = {
         title: songInfo.title,
         url: songInfo.video_url,
+        queuer: message.author.username,
         duration: songInfo.length_seconds,
         durationString: moment.duration(parseInt(songInfo.length_seconds), "seconds").format("h:mm:ss")
       };

@@ -16,8 +16,8 @@ module.exports = {
 	if (serverQueue.songs.length == 0) {
           message.channel.send("The queue is empty");
         } else {
-          var queue_entries = serverQueue.songs.map(song => `${song.title} (${song.durationString})`);
-          queue_entries[0] = queue_entries[0].concat(" (Now playing)");
+          var queue_entries = serverQueue.songs.map(song => `* ${song.title} (${song.durationString}), queued by: ${song.queuer}`);
+          queue_entries[0] = queue_entries[0].concat( " (Now playing)");
 	  var queue_message = queue_entries.join("\n");
           return message.channel.send(
             queue_message
