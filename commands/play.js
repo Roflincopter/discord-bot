@@ -1,5 +1,7 @@
 const { Util } = require("discord.js");
 const ytdl = require("ytdl-core");
+const moment = require("moment");
+const momentDurationFormatSetup = require("moment-duration-format");
 
 module.exports = {
   name: "play",
@@ -25,7 +27,9 @@ module.exports = {
       const songInfo = await ytdl.getInfo(args[1]);
       const song = {
         title: songInfo.title,
-        url: songInfo.video_url
+        url: songInfo.video_url,
+        duration: songInfo.length_seconds,
+        durationString: moment.duration(parseInt(songInfo.length_seconds), "seconds").format("h:mm:ss")
       };
 
       if (!serverQueue) {
@@ -54,7 +58,7 @@ module.exports = {
       } else {
         serverQueue.songs.push(song);
         return message.channel.send(
-          `${song.title} has been added to the queue!`
+          `${song.title} (${song.durationString}) has been added to the queue!`
         );
       }
     } catch (error) {
@@ -82,6 +86,6 @@ module.exports = {
       })
       .on("error", error => console.error(error));
     dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
-    serverQueue.textChannel.send(`Start playing: **${song.title}**`);
+    serverQueue.textChannel.send(`Start playing: **${song.title}** (${song.durationString})`);
   }
 };
