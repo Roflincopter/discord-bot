@@ -2,6 +2,31 @@ const { Util } = require("discord.js");
 const ytdl = require("ytdl-core");
 const moment = require("moment");
 const momentDurationFormatSetup = require("moment-duration-format");
+const ytSearch = require('youtube-search');
+
+const {
+	ytApiKey,
+} = require('./playContext.json');
+
+const searchOpts = {
+	maxResults: 5,
+	key: ytApiKey
+};
+
+const urlPattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
+    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
+    '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
+    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
+    '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
+    '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
+
+function intOrNaN (x) {
+  return /^\d+$/.test(x) ? +x : NaN
+}
+
+function isValidURL(str) {
+  return !!urlPattern.test(str);
+}
 
 module.exports = {
   name: "play",
@@ -9,8 +34,6 @@ module.exports = {
   async execute(message) {
     try {
       const args = message.content.split(" ");
-      const queue = message.client.queue;
-      const serverQueue = message.client.queue.get(message.guild.id);
 
       const voiceChannel = message.member.voice.channel;
       if (!voiceChannel)
@@ -24,50 +47,100 @@ module.exports = {
         );
       }
 
-      const songInfo = await ytdl.getInfo(args[1]);
-      
-      const nickname = message.member.nickname || message.member.user.username; 
-
-      const song = {
-        title: songInfo.title,
-        url: songInfo.video_url,
-        queuer: nickname,
-        duration: songInfo.length_seconds,
-        durationString: moment.duration(parseInt(songInfo.length_seconds), "seconds").format("h:mm:ss")
-      };
-
-      if (!serverQueue) {
-        const queueContruct = {
-          textChannel: message.channel,
-          voiceChannel: voiceChannel,
-          connection: null,
-          songs: [],
-          volume: 4,
-          playing: true
-        };
-
-        queue.set(message.guild.id, queueContruct);
-
-        queueContruct.songs.push(song);
-
-        try {
-          var connection = await voiceChannel.join();
-          queueContruct.connection = connection;
-          this.play(message, queueContruct.songs[0]);
-        } catch (err) {
-          console.log(err);
-          queue.delete(message.guild.id);
-          return message.channel.send(err);
-        }
-      } else {
-        serverQueue.songs.push(song);
-        return message.channel.send(
-          `${song.title} (${song.durationString}) has been added to the queue!`
-        );
+      if(isValidURL(args[1])) {
+        this.queue(args[1], message);
+        return;
       }
+
+      const searchIndex = intOrNaN(args[1]);
+      if(!isNaN(searchIndex)) {
+        var searchResults = message.client.searchResults;
+        var username = message.member.user.username;
+        
+        if(!(username in searchResults)) {
+          message.channel.send("You did not perform a search yet.");
+          return;
+        }
+        results = searchResults[username];
+        if(searchIndex < 0 || searchIndex >= results.length) {
+          message.channel.send("Index out of range for search results");
+          return;
+        }
+
+        this.queue(results[searchIndex].link, message);
+        return; 
+      } 
+      
+      if(!isNaN(+args[1])) {
+        message.channel.send("I'm not sure which integer you meant.");
+        return;
+      }
+      args.shift();
+      this.search(args.join(' '), message);
     } catch (error) {
       console.log(error);
       message.channel.send(error.message);
+    }
+  },
+
+  async search(query, message) {
+    ytSearch(query, searchOpts, (err, results) => {
+      if(err) throw err;
+      
+      var searchResults = message.client.searchResults;
+      searchResults[message.member.user.username] = results;
+
+      var resultEntries = results.map((result, index) => `${index}) "${result.title}", by channel "${result.channelTitle}"`);
+      var resultMessage = resultEntries.join("\n");
+      message.channel.send(resultMessage);
+    });
+  },
+
+  async queue(url, message) {
+
+    const queue = message.client.queue;
+    const serverQueue = message.client.queue.get(message.guild.id);
+    const voiceChannel = message.member.voice.channel;
+    const songInfo = await ytdl.getInfo(url);
+      
+    const nickname = message.member.nickname || message.member.user.username; 
+
+    const song = {
+      title: songInfo.title,
+      url: songInfo.video_url,
+      queuer: nickname,
+      duration: songInfo.length_seconds,
+      durationString: moment.duration(parseInt(songInfo.length_seconds), "seconds").format("h:mm:ss")
+    };
+
+    if (!serverQueue) {
+      const queueContruct = {
+        textChannel: message.channel,
+        voiceChannel: voiceChannel,
+        connection: null,
+        songs: [],
+        volume: 4,
+        playing: true
+      };
+
+      queue.set(message.guild.id, queueContruct);
+
+      queueContruct.songs.push(song);
+
+      try {
+        var connection = await voiceChannel.join();
+        queueContruct.connection = connection;
+        this.play(message, queueContruct.songs[0]);
+      } catch (err) {
+        console.log(err);
+        queue.delete(message.guild.id);
+        return message.channel.send(err);
+      }
+    } else {
+      serverQueue.songs.push(song);
+      return message.channel.send(
+        `${song.title} (${song.durationString}) has been added to the queue!`
+      );
     }
   },
 
