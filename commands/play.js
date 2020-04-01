@@ -86,7 +86,10 @@ module.exports = {
 
   async search(query, message) {
     ytSearch(query, searchOpts, (err, results) => {
-      if(err) throw err;
+      if(err) {
+        console.log(err);
+        return;
+      }
       
       var searchResults = message.client.searchResults;
       searchResults[message.member.user.username] = results;
@@ -152,7 +155,7 @@ module.exports = {
     })
   },
 
-  play(message, song) {
+  async play(message, song) {
     const queue = message.client.queue;
     const guild = message.guild;
     const serverQueue = queue.get(message.guild.id);
@@ -166,18 +169,17 @@ module.exports = {
     var stream = ytdl(song.url);
 
     stream.on('error', err => {
-      console.log(err);
-      stream.unresolve();
+      if(err.code == 'ESOCKETTIMEDOUT') return;
       serverQueue.songs.shift();
       return this.play(message, serverQueue.songs[0]);
     });
 
-    stream.on('info', () => {
+    stream.on('info', async () => {
       const dispatcher = serverQueue.connection
         .play(stream)
-        .on("finish", () => {
+        .on("finish", async () => {
           serverQueue.songs.shift();
-          this.play(message, serverQueue.songs[0]);
+          await this.play(message, serverQueue.songs[0]);
         })
         .on("error", error => console.error(error));
       dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
