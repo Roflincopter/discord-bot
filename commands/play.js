@@ -9,8 +9,9 @@ const {
 } = require('./playContext.json');
 
 const searchOpts = {
-	maxResults: 5,
-	key: ytApiKey
+  maxResults: 5,
+  key: ytApiKey,
+  type: "video"
 };
 
 const urlPattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
