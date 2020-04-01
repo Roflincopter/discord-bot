@@ -1,4 +1,6 @@
 const { Util } = require("discord.js");
+const moment = require("moment");
+const momentDurationFormatSetup = require("moment-duration-format");
 
 module.exports = {
   name: "queue",
@@ -16,8 +18,15 @@ module.exports = {
 	      if (serverQueue.songs.length == 0) {
           message.channel.send("The queue is empty");
         } else {
-          var queue_entries = serverQueue.songs.map(song => `* ${song.title} (${song.durationString}), queued by: ${song.queuer}`);
-          queue_entries[0] = queue_entries[0].concat( " (Now playing)");
+          
+          var queue_entries = serverQueue.songs.map((song, index) => {
+            if(index == 0) {
+              var currentPlayPosition = moment.duration(serverQueue.connection.dispatcher.streamTime, "milliseconds").format("h:mm:ss", { stopTrim: "m" });
+              return `* ${song.title} (${currentPlayPosition}/${song.durationString}), queued by: ${song.queuer} (Now playing)`
+            }
+            return `* ${song.title} (${song.durationString}), queued by: ${song.queuer}`
+          });
+          
 	        var queue_message = queue_entries.join("\n");
           return message.channel.send(queue_message);
         }
