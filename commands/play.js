@@ -95,8 +95,8 @@ module.exports = {
       searchResults[message.member.user.username] = results;
 
       var resultEntries = results.map((result, index) => `${index}) "${result.title}", by channel "${result.channelTitle}"`);
-      var resultMessage = resultEntries.join("\n");
-      message.channel.send(resultMessage);
+      var resultList = resultEntries.join("\n");
+      message.channel.send(`Search results:\n${resultList}`);
     });
   },
 
