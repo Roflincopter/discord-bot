@@ -106,10 +106,9 @@ module.exports = {
     var self = this;
     ytdl.getInfo(url, async function (err, songInfo) {
       if (err) {
-        throw err
+        console.log(err);
+        return;
       }
-
-      console.log(songInfo)
 
       const nickname = message.member.nickname || message.member.user.username; 
 
@@ -151,8 +150,6 @@ module.exports = {
         );
       }
     })
-      
-    
   },
 
   play(message, song) {
@@ -166,14 +163,25 @@ module.exports = {
       return;
     }
 
-    const dispatcher = serverQueue.connection
-      .play(ytdl(song.url))
-      .on("finish", () => {
-        serverQueue.songs.shift();
-        this.play(message, serverQueue.songs[0]);
-      })
-      .on("error", error => console.error(error));
-    dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
-    serverQueue.textChannel.send(`Start playing: **${song.title}** (${song.durationString})`);
+    var stream = ytdl(song.url);
+
+    stream.on('error', err => {
+      console.log(err);
+      stream.unresolve();
+      serverQueue.songs.shift();
+      return this.play(message, serverQueue.songs[0]);
+    });
+
+    stream.on('info', () => {
+      const dispatcher = serverQueue.connection
+        .play(stream)
+        .on("finish", () => {
+          serverQueue.songs.shift();
+          this.play(message, serverQueue.songs[0]);
+        })
+        .on("error", error => console.error(error));
+      dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
+      serverQueue.textChannel.send(`Start playing: **${song.title}** (${song.durationString})`);
+    });
   }
 };
