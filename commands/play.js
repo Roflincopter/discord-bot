@@ -32,7 +32,7 @@ function isValidURL(str) {
 module.exports = {
   name: "play",
   description: "Play a song in your channel!",
-  async execute(message) {
+  execute(message) {
     try {
       const args = message.content.split(" ");
 
@@ -68,7 +68,11 @@ module.exports = {
           return;
         }
 
-        this.queue(results[searchIndex].link, message);
+        this.queue(results[searchIndex].link, message)
+          .catch(reason => {
+            console.log(reason);
+            message.channel.send(reason);
+          });
         return; 
       } 
       
@@ -80,85 +84,99 @@ module.exports = {
       this.search(args.join(' '), message);
     } catch (error) {
       console.log(error);
-      message.channel.send(error.message);
+      error.message && message.channel.send(error.message);
     }
   },
 
-  async search(query, message) {
-    ytSearch(query, searchOpts, (err, results) => {
+  search(query, message) {
+    try {
+      ytSearch(query, searchOpts, (err, results) => {
 
-      if(err) {
-        console.log(err);
-        message.channel.send(err.message)
-        err.message
-        return;
-      }
-      
-      var searchResults = message.client.searchResults;
-      searchResults[message.member.user.username] = results;
-
-      var resultEntries = results.map((result, index) => `${index}) "${result.title}", by channel "${result.channelTitle}"`);
-      var resultList = resultEntries.join("\n");
-      message.channel.send(`Search results:\n${resultList}`);
-    });
+        if(err) {
+          console.log(err);
+          err.message && message.channel.send(err.message)
+          err.message
+          return;
+        }
+        
+        var searchResults = message.client.searchResults;
+        searchResults[message.member.user.username] = results;
+  
+        var resultEntries = results.map((result, index) => `${index}) "${result.title}", by channel "${result.channelTitle}"`);
+        var resultList = resultEntries.join("\n");
+        message.channel.send(`Search results:\n${resultList}`);
+      });
+    } catch (error) {
+      console.log(error);
+      error.message && message.channel.send(error.message);
+    }
   },
 
   async queue(url, message) {
+    try {
+      const queue = message.client.queue;
+      const serverQueue = message.client.queue.get(message.guild.id);
+      const voiceChannel = message.member.voice.channel;
 
-    const queue = message.client.queue;
-    const serverQueue = message.client.queue.get(message.guild.id);
-    const voiceChannel = message.member.voice.channel;
-
-    var self = this;
-    ytdl.getInfo(url, async function (err, songInfo) {
-      if (err) {
-        console.log(err);
-        return;
-      }
-
-      const nickname = message.member.nickname || message.member.user.username; 
-
-      const song = {
-        title: songInfo.title,
-        url: songInfo.url,
-        queuer: nickname,
-        duration: songInfo._duration_raw,
-        durationString: moment.duration(parseInt(songInfo._duration_raw), "seconds").format("h:mm:ss")
-      };
-
-      if (!serverQueue) {
-        const queueContruct = {
-          textChannel: message.channel,
-          voiceChannel: voiceChannel,
-          connection: null,
-          songs: [],
-          volume: 4,
-          playing: true
-        };
-
-        queue.set(message.guild.id, queueContruct);
-
-        queueContruct.songs.push(song);
-
+      var self = this;
+      ytdl.getInfo(url, async function (err, songInfo) {
         try {
-          var connection = await voiceChannel.join();
-          queueContruct.connection = connection;
-          self.play(message, queueContruct.songs[0]);
-        } catch (err) {
-          console.log(err);
-          queue.delete(message.guild.id);
-          return message.channel.send(err);
+          if (err) {
+            console.log(err);
+            return;
+          }
+
+          const nickname = message.member.nickname || message.member.user.username; 
+
+          const song = {
+            title: songInfo.title,
+            url: songInfo.url,
+            queuer: nickname,
+            duration: songInfo._duration_raw,
+            durationString: moment.duration(parseInt(songInfo._duration_raw), "seconds").format("h:mm:ss")
+          };
+
+          if (!serverQueue) {
+            const queueContruct = {
+              textChannel: message.channel,
+              voiceChannel: voiceChannel,
+              connection: null,
+              songs: [],
+              volume: 3,
+              playing: true
+            };
+
+            queue.set(message.guild.id, queueContruct);
+
+            queueContruct.songs.push(song);
+
+            try {
+              var connection = await voiceChannel.join();
+              queueContruct.connection = connection;
+              self.play(message, queueContruct.songs[0]);
+            } catch (err) {
+              console.log(err);
+              queue.delete(message.guild.id);
+              return message.channel.send(err);
+            }
+          } else {
+            serverQueue.songs.push(song);
+            return message.channel.send(
+              `${song.title} (${song.durationString}) has been added to the queue!`
+            );
+          }
+        } catch (error) {
+          console.log(error);
+          error.message && message.channel.send(error.message);
         }
-      } else {
-        serverQueue.songs.push(song);
-        return message.channel.send(
-          `${song.title} (${song.durationString}) has been added to the queue!`
-        );
-      }
-    })
+      });
+    } catch (error) {
+      console.log(error);
+      error.message && message.channel.send(error.message);
+    }
   },
 
-  async play(message, song) {
+  play(message, song) {
     const queue = message.client.queue;
     const guild = message.guild;
     const serverQueue = queue.get(message.guild.id);
@@ -169,21 +187,22 @@ module.exports = {
       return;
     }
 
-    var stream = ytdl(song.url);
+    var stream = ytdl(song.url, ['-x', '--audio-format', 'mp3']);
 
     stream.on('error', err => {
+      console.log(err);
       if(err.code == 'ESOCKETTIMEDOUT') return;
       serverQueue.songs.shift();
-      return this.play(message, serverQueue.songs[0]);
+      this.play(message, serverQueue.songs[0]);
+      return;
     });
 
-    stream.on('info', async () => {
+    stream.on('info', () => {
       const dispatcher = serverQueue.connection
         .play(stream)
-        .on("finish", async () => {
-          
+        .on("finish", () => {
           serverQueue.songs.shift();
-          await this.play(message, serverQueue.songs[0]);
+          this.play(message, serverQueue.songs[0]);
         })
         .on("error", error => console.error(error));
       dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
