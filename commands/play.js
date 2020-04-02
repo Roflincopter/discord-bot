@@ -86,8 +86,11 @@ module.exports = {
 
   async search(query, message) {
     ytSearch(query, searchOpts, (err, results) => {
+
       if(err) {
         console.log(err);
+        message.channel.send(err.message)
+        err.message
         return;
       }
       
@@ -178,6 +181,7 @@ module.exports = {
       const dispatcher = serverQueue.connection
         .play(stream)
         .on("finish", async () => {
+          
           serverQueue.songs.shift();
           await this.play(message, serverQueue.songs[0]);
         })
