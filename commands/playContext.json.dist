@@ -1,0 +1,4 @@
+{
+	"ytApiKey": "Your YT API key here",
+	"highWaterMark": 32
+}

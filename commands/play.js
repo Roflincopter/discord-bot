@@ -5,7 +5,8 @@ const momentDurationFormatSetup = require("moment-duration-format");
 const ytSearch = require('youtube-search');
 
 const {
-	ytApiKey,
+  ytApiKey,
+  highWaterMark
 } = require('./playContext.json');
 
 const searchOpts = {
@@ -187,7 +188,7 @@ module.exports = {
       return;
     }
 
-    var stream = ytdl(song.url, ['-x', '--audio-format', 'mp3']);
+    var stream = ytdl(song.url, ['--audio-quality', '0', '-x']);
 
     stream.on('error', err => {
       console.log(err);
@@ -199,7 +200,7 @@ module.exports = {
 
     stream.on('info', () => {
       const dispatcher = serverQueue.connection
-        .play(stream)
+        .play(stream, {filter: "audioonly", highWaterMark: highWaterMark})
         .on("finish", () => {
           serverQueue.songs.shift();
           this.play(message, serverQueue.songs[0]);

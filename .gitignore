@@ -1,2 +1,5 @@
+config.json
+commands/playContext.json
+
 node_modules
 npm-debug.log
