@@ -124,6 +124,7 @@ module.exports = {
         try {
           if (err) {
             console.log(err);
+            message.channel.send(err.stderr);
             return;
           }
 
@@ -188,11 +189,12 @@ module.exports = {
       return;
     }
 
-    var stream = ytdl(song.url, ['--audio-quality', '0', '-x']);
+    var stream = ytdl(song.url, ['--restrict-filenames', '--audio-quality', '0', '-x']);
 
     stream.on('error', err => {
       console.log(err);
       if(err.code == 'ESOCKETTIMEDOUT') return;
+      message.channel.send(err.stderr);
       serverQueue.songs.shift();
       this.play(message, serverQueue.songs[0]);
       return;
