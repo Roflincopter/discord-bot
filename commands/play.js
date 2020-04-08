@@ -30,10 +30,26 @@ function isValidURL(str) {
   return !!urlPattern.test(str);
 }
 
+function ytGetInfoWrapper(url) {
+  return new Promise((resolve, reject) => {
+    ytdl.getInfo(url, async function (err, songInfo) {
+      if(err) reject(err);
+      resolve(songInfo);
+    });
+  })
+  
+}
+
+async function asyncForEach(array, callback) {
+  for (let index = 0; index < array.length; index++) {
+    await callback(array[index], index, array);
+  }
+}
+
 module.exports = {
   name: "play",
   description: "Play a song in your channel!",
-  execute(message) {
+  async execute(message) {
     try {
       const args = message.content.split(" ");
 
@@ -49,8 +65,11 @@ module.exports = {
         );
       }
 
-      if(isValidURL(args[1])) {
-        this.queue(args[1], message);
+      const playArgs = args.slice(1);
+      if(playArgs.every(isValidURL)) {
+         await asyncForEach(playArgs, async (item) => {
+          await this.queue(item, message);
+        });
         return;
       }
 
@@ -93,13 +112,6 @@ module.exports = {
     try {
       ytSearch(query, searchOpts, (err, results) => {
 
-        if(err) {
-          console.log(err);
-          err.message && message.channel.send(err.message)
-          err.message
-          return;
-        }
-        
         var searchResults = message.client.searchResults;
         searchResults[message.member.user.username] = results;
   
@@ -115,63 +127,58 @@ module.exports = {
 
   async queue(url, message) {
     try {
+      var self = this;
+      
+      var songInfo = await ytGetInfoWrapper(url); 
+
       const queue = message.client.queue;
       const serverQueue = message.client.queue.get(message.guild.id);
       const voiceChannel = message.member.voice.channel;
 
-      var self = this;
-      ytdl.getInfo(url, async function (err, songInfo) {
-        try {
-          if (err) {
-            console.log(err);
-            message.channel.send(err.stderr);
-            return;
-          }
+      try {
+        const nickname = message.member.nickname || message.member.user.username; 
 
-          const nickname = message.member.nickname || message.member.user.username; 
+        const song = {
+          title: songInfo.title,
+          url: songInfo.url,
+          queuer: nickname,
+          duration: songInfo._duration_raw,
+          durationString: moment.duration(parseInt(songInfo._duration_raw), "seconds").format("h:mm:ss")
+        };
 
-          const song = {
-            title: songInfo.title,
-            url: songInfo.url,
-            queuer: nickname,
-            duration: songInfo._duration_raw,
-            durationString: moment.duration(parseInt(songInfo._duration_raw), "seconds").format("h:mm:ss")
+        if (!serverQueue) {
+          const queueContruct = {
+            textChannel: message.channel,
+            voiceChannel: voiceChannel,
+            connection: null,
+            songs: [],
+            volume: 3,
+            playing: true
           };
 
-          if (!serverQueue) {
-            const queueContruct = {
-              textChannel: message.channel,
-              voiceChannel: voiceChannel,
-              connection: null,
-              songs: [],
-              volume: 3,
-              playing: true
-            };
+          queue.set(message.guild.id, queueContruct);
 
-            queue.set(message.guild.id, queueContruct);
+          queueContruct.songs.push(song);
 
-            queueContruct.songs.push(song);
-
-            try {
-              var connection = await voiceChannel.join();
-              queueContruct.connection = connection;
-              self.play(message, queueContruct.songs[0]);
-            } catch (err) {
-              console.log(err);
-              queue.delete(message.guild.id);
-              return message.channel.send(err);
-            }
-          } else {
-            serverQueue.songs.push(song);
-            return message.channel.send(
-              `${song.title} (${song.durationString}) has been added to the queue!`
-            );
+          try {
+            var connection = await voiceChannel.join();
+            queueContruct.connection = connection;
+            self.play(message, queueContruct.songs[0]);
+          } catch (err) {
+            console.log(err);
+            queue.delete(message.guild.id);
+            return message.channel.send(err);
           }
-        } catch (error) {
-          console.log(error);
-          error.message && message.channel.send(error.message);
+        } else {
+          serverQueue.songs.push(song);
+          return message.channel.send(
+            `${song.title} (${song.durationString}) has been added to the queue!`
+          );
         }
-      });
+      } catch (error) {
+        console.log(error);
+        error.message && message.channel.send(error.message);
+      }
     } catch (error) {
       console.log(error);
       error.message && message.channel.send(error.message);
