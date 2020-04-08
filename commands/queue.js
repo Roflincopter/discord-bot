@@ -21,9 +21,9 @@ module.exports = {
           var queue_entries = serverQueue.songs.map((song, index) => {
             if(index == 0) {
               var currentPlayPosition = util.getCurrentPlayTime(serverQueue.connection && serverQueue.connection.dispatcher);
-              return `* ${song.title} (${currentPlayPosition}/${song.durationString}), queued by: ${song.queuer} (Now playing)`
+              return `* **${song.title}** (${currentPlayPosition}/${song.durationString}), queued by: ${song.queuer} (Now playing)`
             }
-            return `* ${song.title} (${song.durationString}), queued by: ${song.queuer}`
+            return `* **${song.title}** (${song.durationString}), queued by: ${song.queuer}`
           });
           
 	        var queue_message = queue_entries.join("\n");

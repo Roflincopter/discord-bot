@@ -159,6 +159,7 @@ module.exports = {
           queue.set(message.guild.id, queueContruct);
 
           queueContruct.songs.push(song);
+          message.channel.send(`**${song.title}** (${song.durationString}) has been added to the queue!`);
 
           try {
             var connection = await voiceChannel.join();
@@ -171,9 +172,7 @@ module.exports = {
           }
         } else {
           serverQueue.songs.push(song);
-          return message.channel.send(
-            `${song.title} (${song.durationString}) has been added to the queue!`
-          );
+          return message.channel.send(`**${song.title}** (${song.durationString}) has been added to the queue!`);
         }
       } catch (error) {
         console.log(error);
