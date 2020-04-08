@@ -1,6 +1,5 @@
-const { Util } = require("discord.js");
-const moment = require("moment");
-const momentDurationFormatSetup = require("moment-duration-format");
+
+const util =  require("./util");
 
 module.exports = {
   name: "queue",
@@ -21,7 +20,7 @@ module.exports = {
           
           var queue_entries = serverQueue.songs.map((song, index) => {
             if(index == 0) {
-              var currentPlayPosition = moment.duration(serverQueue.connection.dispatcher.streamTime, "milliseconds").format("h:mm:ss", { stopTrim: "m" });
+              var currentPlayPosition = util.getCurrentPlayTime(serverQueue.connection && serverQueue.connection.dispatcher);
               return `* ${song.title} (${currentPlayPosition}/${song.durationString}), queued by: ${song.queuer} (Now playing)`
             }
             return `* ${song.title} (${song.durationString}), queued by: ${song.queuer}`
