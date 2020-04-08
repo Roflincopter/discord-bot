@@ -4,6 +4,7 @@ const Client = require('./client/Client');
 const {
 	prefix,
 	token,
+	channels,
 } = require('./config.json');
 
 const client = new Client();
@@ -36,6 +37,8 @@ client.on('message', async message => {
 	const command = client.commands.get(commandName);
 
 	if (message.author.bot) return;
+	if (message.channel instanceof Discord.DMChannel) return;
+	if (channels != null && !channels.includes(message.channel.name)) return;
 	if (!message.content.startsWith(prefix)) return;
 
 	try {
