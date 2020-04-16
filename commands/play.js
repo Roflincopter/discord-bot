@@ -22,8 +22,14 @@ const urlPattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
     '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
     '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
 
+const youtubeVideoPrefix = "https://www.youtube.com/watch?v=";
+
 function intOrNaN (x) {
-  return /^\d+$/.test(x) ? +x : NaN
+  return /^\d+$/.test(x) ? +x : NaN;
+}
+
+function isValidYoutubeVideoId(x) {
+  return /[a-zA-Z0-9_-]{11}/.test(x);
 }
 
 function isValidURL(str) {
@@ -51,13 +57,14 @@ module.exports = {
   description: "Play a song in your channel!",
   async execute(message) {
     try {
-      const args = message.content.split(" ");
+      const args = message.content.match(/[^\s]+/g);
 
       const voiceChannel = message.member.voice.channel;
-      if (!voiceChannel)
+      if (!voiceChannel) {
         return message.channel.send(
           "You need to be in a voice channel to play music!"
         );
+      }
       const permissions = voiceChannel.permissionsFor(message.client.user);
       if (!permissions.has("CONNECT") || !permissions.has("SPEAK")) {
         return message.channel.send(
@@ -69,6 +76,14 @@ module.exports = {
       if(playArgs.every(isValidURL)) {
          await asyncForEach(playArgs, async (item) => {
           await this.queue(item, message);
+        });
+        return;
+      }
+
+      if(playArgs.every(isValidYoutubeVideoId)) {
+        await asyncForEach(playArgs, async (item) => {
+          console.log(`${youtubeVideoPrefix}${item}`);
+          await this.queue(`${youtubeVideoPrefix}${item}`, message);
         });
         return;
       }
