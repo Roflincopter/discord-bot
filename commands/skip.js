@@ -10,7 +10,6 @@ module.exports = {
 		function onResumePlay(playing) {
 			if(playing) {
 				dispatcher.end()
-				dispatcher.destroy();
 				dispatcher.removeListener("speaking", onResumePlay);
 			}
 		}
