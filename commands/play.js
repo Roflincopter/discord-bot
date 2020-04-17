@@ -3,6 +3,7 @@ const ytdl = require("youtube-dl");
 const moment = require("moment");
 const momentDurationFormatSetup = require("moment-duration-format");
 const ytSearch = require('youtube-search');
+const fetch = require('node-fetch');
 
 const {
   ytApiKey,
@@ -82,7 +83,6 @@ module.exports = {
 
       if(playArgs.every(isValidYoutubeVideoId)) {
         await asyncForEach(playArgs, async (item) => {
-          console.log(`${youtubeVideoPrefix}${item}`);
           await this.queue(`${youtubeVideoPrefix}${item}`, message);
         });
         return;
@@ -125,12 +125,35 @@ module.exports = {
 
   search(query, message) {
     try {
-      ytSearch(query, searchOpts, (err, results) => {
+      ytSearch(query, searchOpts, async (err, results) => {
+
+        let idQueryStrings = results.map(entry => `${entry.id}`);
+        let idQueryPart = `id=${idQueryStrings.join(",")}`;
+
+        let infoUrl = `https://www.googleapis.com/youtube/v3/videos?${idQueryPart}&part=contentDetails&key=${ytApiKey}`
+
+        console.log(infoUrl);
+
+        var durationDict = {};
+
+        try {
+          let response = await fetch(infoUrl);
+          let json = await response.json();
+
+          json.items.forEach(item => {
+            let duration = moment.duration(item.contentDetails.duration);
+            durationDict[item.id] = duration.asSeconds();
+          })
+
+        } catch(error) {
+          console.log(error);
+          error && message.channel.send(error);
+        }
 
         var searchResults = message.client.searchResults;
         searchResults[message.member.user.username] = results;
-  
-        var resultEntries = results.map((result, index) => `${index}) "${result.title}", by channel "${result.channelTitle}"`);
+
+        var resultEntries = results.map((result, index) => `${index}) **${result.title}** (${moment.duration(parseInt(durationDict[result.id]), "seconds").format("h:mm:ss")}), by channel "${result.channelTitle}"`);
         var resultList = resultEntries.join("\n");
         message.channel.send(`Search results:\n${resultList}`);
       });
