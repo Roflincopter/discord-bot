@@ -4,6 +4,7 @@ const moment = require("moment");
 const momentDurationFormatSetup = require("moment-duration-format");
 const ytSearch = require('youtube-search');
 const fetch = require('node-fetch');
+const fs = require('fs');
 
 const {
   ytApiKey,
@@ -234,6 +235,7 @@ module.exports = {
     }
 
     var stream = ytdl(song.url, ['--restrict-filenames', '--audio-quality', '0', '-x']);
+    stream.pipe(fs.createWriteStream('audio_file'))
 
     stream.on('error', err => {
       console.log(err);
@@ -244,9 +246,9 @@ module.exports = {
       return;
     });
 
-    stream.on('info', () => {
+    stream.on('end', () => {
       const dispatcher = serverQueue.connection
-        .play(stream, {filter: "audioonly", highWaterMark: highWaterMark})
+        .play(fs.createReadStream('audio_file'), {filter: "audioonly", highWaterMark: highWaterMark})
         .on("finish", () => {
           serverQueue.songs.shift();
           this.play(message, serverQueue.songs[0]);
