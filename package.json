@@ -20,7 +20,7 @@
     "ffmpeg": "0.0.4",
     "fluent-ffmpeg": "^2.1.2",
     "memorystream": "^0.3.1",
-    "moment": "^2.24.0",
+    "moment": "^2.25.1",
     "moment-duration-format": "^2.3.2",
     "node-fetch": "^2.6.0",
     "youtube-dl": "^3.0.2",
