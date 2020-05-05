@@ -235,10 +235,19 @@ module.exports = {
       return;
     }
 
-    var stream = ytdl(song.url, ['--restrict-filenames', '--audio-quality', '0', '-x']);
-    var memStream = new memoryStream();
+    var stream_to_play;
 
-    stream.pipe(memStream)
+    var stream = ytdl(song.url, ['--restrict-filenames', '--audio-quality', '0', '-x']);
+
+    //If the song is less than an hour we can keep it in memory and guarantee full playback.
+    if(song.duration < 60 * 60) {
+      var stream_to_play = new memoryStream();
+
+      stream.pipe(stream_to_play)
+    } else {
+      stream_to_play = stream;
+    }
+    
 
     stream.on('error', err => {
       console.log(err);
@@ -251,7 +260,7 @@ module.exports = {
 
     stream.on('info', () => {
       const dispatcher = serverQueue.connection
-        .play(memStream, {filter: "audioonly", highWaterMark: highWaterMark})
+        .play(stream_to_play, {filter: "audioonly", highWaterMark: highWaterMark})
         .on("finish", () => {
           serverQueue.songs.shift();
           this.play(message, serverQueue.songs[0]);
